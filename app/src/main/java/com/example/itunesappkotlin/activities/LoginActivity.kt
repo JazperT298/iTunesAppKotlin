@@ -20,11 +20,14 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var login: Button
     private lateinit var imageView: ImageView
     private lateinit var currentTime: String
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
         initializeUI()
     }
+
+    //Initializing User Interface
     private fun initializeUI() {
         name = findViewById(R.id.name)
         password = findViewById(R.id.password)

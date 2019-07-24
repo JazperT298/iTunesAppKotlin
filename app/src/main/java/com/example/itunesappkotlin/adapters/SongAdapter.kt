@@ -110,8 +110,5 @@ class SongAdapter(internal var activity: MainActivity, var mList:ArrayList<SongM
         onItemClickListener = onItemClickListeners
     }
 
-    fun updateData(songModel : ArrayList<SongModel>){
-        this.mList = songModel
-        notifyDataSetChanged()
-    }
+
 }

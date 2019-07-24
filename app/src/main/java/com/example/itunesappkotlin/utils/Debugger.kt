@@ -16,6 +16,7 @@ internal object Debugger {
         return gson.toJson(obj)
     }
 
+    //Debug Purposes
     fun logD(message: String) {
         Log.d(TAG, message)
     }

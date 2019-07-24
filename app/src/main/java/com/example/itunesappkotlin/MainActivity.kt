@@ -54,6 +54,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         initializeUI()
     }
 
+
+    //Initializing User Interface
     private fun initializeUI() {
 
         checkUser()
@@ -64,7 +66,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
 
         loadiTunesItems()
     }
-
+    //Get Username and Date of Current User
     fun getSharedPref() {
         val SP = applicationContext.getSharedPreferences("NAME", 0)
         name = SP.getString("Name", null)
@@ -72,6 +74,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         this@MainActivity.title = "$name        $date"
     }
 
+    //Load All Items From API
     private fun loadiTunesItems() {
         songModelArrayList.clear()
 
@@ -187,6 +190,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
 
     }
 
+    //Checking If There Is A Current User
     fun checkUser() {
 
         val Check = java.lang.Boolean.valueOf(SharedPref.readSharedSetting(applicationContext, "ClipCodes", "true"))
@@ -199,6 +203,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         }
     }
 
+
+    //Logout Function
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu, menu)
         return true
@@ -221,6 +227,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         return false
     }
 
+    //Item Click For Each Item That The User Click
+    //
     override fun onItemClick(position: Int) {
         val detailIntent = Intent(context, DetailsActivity::class.java)
         val songModels = songModelArrayList[position]
@@ -233,6 +241,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         startActivity(detailIntent)
     }
 
+    //Restore User Session Whenever He Presses Back Button
     override fun onBackPressed() {
         super.onBackPressed()
         checkUser()
