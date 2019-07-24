@@ -241,12 +241,6 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         startActivity(detailIntent)
     }
 
-    //Restore User Session Whenever He Presses Back Button
-    override fun onBackPressed() {
-        super.onBackPressed()
-        checkUser()
-        getSharedPref()
-    }
 
 
 }
