@@ -1,8 +1,10 @@
 package com.example.itunesappkotlin
 
+import android.app.Activity
 import android.app.ProgressDialog
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v7.widget.LinearLayoutManager
@@ -25,12 +27,25 @@ import com.example.ituneskotlin.utils.SharedPref
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.*
+import com.google.firebase.storage.StorageReference
 import com.loopj.android.http.RequestParams
 import de.hdodenhof.circleimageview.CircleImageView
 import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
 import java.util.ArrayList
+
+import android.app.Activity.RESULT_OK
+import android.webkit.MimeTypeMap
+import android.widget.Toast
+import com.google.android.gms.tasks.Continuation
+import com.google.android.gms.tasks.OnCompleteListener
+import com.google.android.gms.tasks.OnFailureListener
+import com.google.android.gms.tasks.Task
+import com.google.firebase.storage.UploadTask
+import es.dmoral.toasty.Toasty
+import java.util.HashMap
+import com.google.firebase.storage.StorageTask as StorageTask
 
 class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
 
@@ -63,6 +78,12 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
     private var firebaseUser: FirebaseUser? = null
     private lateinit var auth: FirebaseAuth
     private lateinit var reference: DatabaseReference
+    private var storageReference: StorageReference? = null
+    private val IMAGE_REQUEST = 1
+    private lateinit var imageUri: Uri
+    private var uploadTask: UploadTask? = null
+    //var uploadTask: StorageTask
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,6 +135,9 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
             override fun onCancelled(databaseError: DatabaseError) {
 
             }
+        })
+        profile_image.setOnClickListener(View.OnClickListener {
+            openImage()
         })
 
     }
@@ -283,6 +307,76 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         detailIntent.putExtra("primaryGenreName", songModels.primaryGenreName)
 
         startActivity(detailIntent)
+    }
+
+    private fun openImage(){
+        val intent = Intent()
+        intent.type = "image/*"
+        intent.action = Intent.ACTION_GET_CONTENT
+        startActivityForResult(intent, IMAGE_REQUEST)
+    }
+    private fun getFileExtension(uri: Uri): String? {
+        val contentResolver = applicationContext.contentResolver
+        val mimeTypeMap = MimeTypeMap.getSingleton()
+        return mimeTypeMap.getExtensionFromMimeType(contentResolver.getType(uri))
+    }
+
+    private fun uploadImage() {
+          val progressDialog = ProgressDialog(context)
+        progressDialog.setMessage("Uploading . . .")
+        progressDialog.show()
+
+        if (imageUri != null) {
+           var fileReference  = storageReference!!.child((System.currentTimeMillis()).toString() + "." + getFileExtension(imageUri))
+
+            uploadTask = fileReference!!.putFile(imageUri)
+            uploadTask!!.continueWithTask(Continuation<UploadTask.TaskSnapshot, Task<Uri>> { task ->
+            if (!task.isSuccessful) {
+                throw task.getException()!!
+            }
+
+            fileReference!!.downloadUrl
+            }).addOnCompleteListener(OnCompleteListener<Uri> { task ->
+                if (task.isSuccessful) {
+                    val downloadUri = task.result
+                    val mUri = downloadUri!!.toString()
+
+                    reference = FirebaseDatabase.getInstance().getReference("Users").child(firebaseUser?.uid.toString())
+                    val map = HashMap<String, Any>()
+                    map["imageURL"] = "" + mUri
+                    reference.updateChildren(map)
+
+                    progressDialog.dismiss()
+                } else {
+                    Toasty.error(context, "Failed!").show()
+                    progressDialog.dismiss()
+                }
+            }).addOnFailureListener(OnFailureListener { e ->
+                    Toasty.error(context, e.message.toString()).show()
+                    progressDialog.dismiss()
+            })
+        } else {
+            Toasty.warning(context, "No image selected").show()
+        }
+
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == IMAGE_REQUEST && resultCode == Activity.RESULT_OK
+            && data != null && data.data != null
+        ) {
+            imageUri = data.data
+
+
+            if (uploadTask != null && uploadTask!!.isInProgress()) {
+                Toasty.info(context, "Upload in progress").show()
+            } else {
+                //uploadImage()
+                Toasty.info(context, "Uploading image is still ongoing!") .show()
+            }
+        }
     }
 
 
