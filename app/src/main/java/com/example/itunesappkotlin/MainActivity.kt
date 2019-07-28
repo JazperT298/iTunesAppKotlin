@@ -7,18 +7,26 @@ import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
+import android.support.v7.widget.Toolbar
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
+import android.widget.TextView
+import com.bumptech.glide.Glide
 import com.example.itunesappkotlin.activities.DetailsActivity
 import com.example.itunesappkotlin.activities.LoginActivity
 import com.example.itunesappkotlin.adapters.SongAdapter
 import com.example.itunesappkotlin.models.SongModel
+import com.example.itunesappkotlin.models.User
 import com.example.ituneskotlin.utils.Debugger
 import com.example.ituneskotlin.utils.SharedPref
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.*
 import com.loopj.android.http.RequestParams
+import de.hdodenhof.circleimageview.CircleImageView
 import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
@@ -46,33 +54,70 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
     internal lateinit var client: OkHttpClient
     internal lateinit var request: Request
 
+    private lateinit var profile_image: CircleImageView
+    private lateinit var username: TextView
+    private lateinit var toolbar: Toolbar
+    private var user: User? = null
+
+
+    private var firebaseUser: FirebaseUser? = null
+    private lateinit var auth: FirebaseAuth
+    private lateinit var reference: DatabaseReference
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         context = this
-        initializeUI()
+
     }
 
 
-    //Initializing User Interface
-    private fun initializeUI() {
+    override fun onStart() {
+        super.onStart()
 
         checkUser()
-        getSharedPref()
-
-        recyclerView = findViewById(R.id.coin_recycler_view)
-
-
+        initializeUI()
         loadiTunesItems()
     }
-    //Get Username and Date of Current User
-    fun getSharedPref() {
-        val SP = applicationContext.getSharedPreferences("NAME", 0)
-        name = SP.getString("Name", null)
-        date = SP.getString("Date", null)
-        this@MainActivity.title = "$name        $date"
+    //Initializing User Interface
+    private fun initializeUI() {
+        recyclerView = findViewById(R.id.coin_recycler_view)
+        profile_image = findViewById(R.id.profile_image)
+        username = findViewById(R.id.username)
+
+        toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar!!.title = ""
+
+
+        auth = FirebaseAuth.getInstance()
+        firebaseUser = FirebaseAuth.getInstance().currentUser
+        Debugger.logD("firebaseUser " + firebaseUser)
+
+
+        reference = FirebaseDatabase.getInstance().getReference("Users").child(firebaseUser?.uid.toString())
+
+        reference.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                user = dataSnapshot.getValue(User::class.java)
+                Debugger.logD("user " + user)
+                username.text = user?.username.toString()
+                if (user?.imageURL.equals("default")) {
+                    profile_image.setImageResource(R.drawable.note)
+                } else {
+
+                    //change this
+                    Glide.with(applicationContext).load(user?.imageURL).into(profile_image)
+                }
+            }
+
+            override fun onCancelled(databaseError: DatabaseError) {
+
+            }
+        })
+
     }
+
 
     //Load All Items From API
     private fun loadiTunesItems() {
@@ -97,7 +142,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    progressDialog?.dismiss()
+                    progressDialog.dismiss()
 
                     var responses = JSONObject(response.body!!.string())
                     Debugger.logD("ohhhh" + responses)
@@ -178,9 +223,9 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
 
                     runOnUiThread {
                         val layoutManager = LinearLayoutManager(context)
-                        recyclerView.setLayoutManager(layoutManager)
+                        recyclerView.layoutManager = layoutManager
                         songAdapter = SongAdapter(this@MainActivity, songModelArrayList)
-                        recyclerView.setAdapter(songAdapter)
+                        recyclerView.adapter = songAdapter
                         songAdapter.setOnItemClickListener(this@MainActivity)
                     }
                 }
@@ -191,15 +236,13 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
     }
 
     //Checking If There Is A Current User
-    fun checkUser() {
-
-        val Check = java.lang.Boolean.valueOf(SharedPref.readSharedSetting(applicationContext, "ClipCodes", "true"))
-
-        val introIntent = Intent(applicationContext, LoginActivity::class.java)
-        introIntent.putExtra("ClipCodes", Check)
-
-        if (Check) {
-            startActivity(introIntent)
+    private fun checkUser() {
+        //firebaseUser = FirebaseAuth.getInstance().currentUser!!
+        //check if user is null
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+            val intent = Intent(this@MainActivity, LoginActivity::class.java)
+            startActivity(intent)
+            finish()
         }
     }
 
@@ -214,13 +257,14 @@ class MainActivity : AppCompatActivity(), SongAdapter.OnItemClickListener {
         when (item.itemId) {
 
             R.id.logout -> {
-                val sharedPref = SharedPref()
-                SharedPref.saveSharedSetting(this@MainActivity, "ClipCodes", "true")
-                SharedPref.SharedPrefesSAVE(applicationContext, "", "")
-                sharedPref.saveUserSession(context)
-                val LogOut = Intent(applicationContext, LoginActivity::class.java)
-                startActivity(LogOut)
-                finish()
+                FirebaseAuth.getInstance().signOut()
+                startActivity(
+                    Intent(
+                        this@MainActivity,
+                        LoginActivity::class.java
+                    ).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                )
+                return true
             }
         }
 
